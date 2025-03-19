@@ -1,8 +1,15 @@
 {
-  "crons": [
+  "version": 2,
+  "builds": [
     {
-      "path": "/api/monitor",
-      "schedule": "*/5 * * * *"
+      "src": "api/monitor.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/monitor",
+      "dest": "api/monitor.py"
     }
   ]
 }
