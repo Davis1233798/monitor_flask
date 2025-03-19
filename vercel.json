@@ -8,7 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/api/monitor",
+      "src": "/(.*)",
       "dest": "/api/monitor.py"
     }
   ]
