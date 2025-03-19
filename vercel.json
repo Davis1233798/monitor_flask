@@ -1,7 +1,8 @@
 {
-  "functions": {
-    "api/monitor.py": {
-      "crons": ["*/5 * * * *"]
+  "crons": [
+    {
+      "path": "/api/monitor",
+      "schedule": "*/5 * * * *"
     }
-  }
+  ]
 }
