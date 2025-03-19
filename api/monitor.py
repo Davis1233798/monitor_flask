@@ -61,9 +61,9 @@ def monitor():
     """主監控函數，執行監控邏輯並發送測試訊息"""
     try:
         # 測試端點是否正常
-        success, msg = send_message("測試訊息：Vercel 端點已觸發")
-        if not success:
-            return jsonify({"status": "error", "message": msg}), 500
+        # success, msg = send_message("測試訊息：Vercel 端點已觸發")
+        # if not success:
+        #     return jsonify({"status": "error", "message": msg}), 500
 
         xxxxx, ooooo = get_numbers(URL)
         xx, oo = get_numbers(URL2)
@@ -71,9 +71,9 @@ def monitor():
         dif = oo - xx
 
         # 測試模式：發送 dif 值
-        success, msg = send_message(f"Test mode: dif = {dif}")
-        if not success:
-            return jsonify({"status": "error", "message": msg}), 500
+        # success, msg = send_message(f"Test mode: dif = {dif}")
+        # if not success:
+        #     return jsonify({"status": "error", "message": msg}), 500
 
         if difference > 2:
             send_message(f"警告：ooooo - xxxxx = {difference} > 2\n當前值：{xxxxx} / {ooooo}")
