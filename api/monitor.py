@@ -47,7 +47,7 @@ def monitor():
         xx, oo = get_numbers(URL2)
         difference = ooooo - xxxxx
         dif = oo - xx
-
+        send_message(dif)
         if difference > 2:
             message = f"警告：ooooo - xxxxx = {difference} > 2\n當前值：{xxxxx} / {ooooo}"
             send_message(message)
@@ -65,6 +65,7 @@ def monitor():
             )
             send_message(message)
         return jsonify({"status": "success"})
+        
     except Exception as e:
         error_message = f"監測腳本出現錯誤：{str(e)}"
         send_message(error_message)
