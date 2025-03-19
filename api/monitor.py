@@ -32,8 +32,7 @@ def get_numbers(url, retries=3, timeout=15):
             if attempt < retries - 1:
                 time.sleep(2)
                 continue
-            else:
-                raise e
+            raise e
 
 def send_message(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -58,7 +57,7 @@ def monitor():
         if difference > 2 or dif > 2:
             message = (
                 f"Respority:Davis1233798/monitor.py\n"
-                f"github acrtions\n"
+                f"cron-job.org\n"
                 f"網站網址: {URL}\n"
                 f"網站網址: {URL2}\n"
                 f"{URL} 目前可註冊數量: {difference}\n"
@@ -70,6 +69,3 @@ def monitor():
         error_message = f"監測腳本出現錯誤：{str(e)}"
         send_message(error_message)
         return jsonify({"status": "error", "message": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run()
