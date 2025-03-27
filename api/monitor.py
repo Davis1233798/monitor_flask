@@ -7,9 +7,7 @@ import time
 
 app = Flask(__name__)
 
-# 從環境變數獲取 Telegram 配置
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# 網站配置
 URL = "https://www.serv00.com/"
 URL2 = "https://www.ct8.pl/"
 
@@ -17,7 +15,7 @@ URL2 = "https://www.ct8.pl/"
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 WEBCRAWLER_DISCORD_WEBHOOK_URL = os.environ.get("WEBCRAWLER_DISCORD_WEBHOOK_URL")
 
-def send_discord_message(message):
+def send_message(message):
     """發送訊息到Discord頻道"""
     # 優先使用專用頻道Webhook
     webhook_url = WEBCRAWLER_DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL
@@ -38,28 +36,8 @@ def send_discord_message(message):
         print(error_msg)
         return False, error_msg
 
-def send_message(message):
-    """發送訊息到 Telegram，若失敗則拋出異常"""
-    if not TOKEN or not CHAT_ID:
-        raise ValueError("TELEGRAM_TOKEN 或 TELEGRAM_CHAT_ID 未設置")
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": str(message)}  # 確保 message 是字串
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        # 嘗試也發送到Discord
-        send_discord_message(message)
-        return True, "訊息發送成功"
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Telegram 發送失敗: {str(e)}"
-        # 嘗試發送到Discord作為備用
-        discord_success, _ = send_discord_message(message)
-        if not discord_success:
-            raise Exception(error_msg)
-        return discord_success, "Telegram失敗但Discord發送成功"
-
 def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
-    """獲取網站數字，若失敗則發送錯誤訊息到 Telegram"""
+    """獲取網站數字，若失敗則發送錯誤訊息"""
     for attempt in range(retries):
         try:
             response = requests.get(url, timeout=timeout)
@@ -92,9 +70,9 @@ def monitor():
     """主監控函數，執行監控邏輯並發送測試訊息"""
     try:
         # 測試Discord是否可用
-        discord_success, discord_msg = send_discord_message("🔍 Web爬蟲監控服務啟動")
-        if not discord_success:
-            print(f"Discord發送失敗: {discord_msg}")
+        success, msg = send_message("🔍 Web爬蟲監控服務啟動")
+        if not success:
+            print(f"Discord發送失敗: {msg}")
 
         xxxxx, ooooo = get_numbers(URL)
         xx, oo = get_numbers(URL2)
@@ -120,11 +98,6 @@ def monitor():
         error_message = f"監測腳本出現錯誤：{str(e)}"
         try:
             send_message(error_message)
-        except Exception as telegram_error:
-            # 如果Telegram也失敗，嘗試發送到Discord
-            try:
-                send_discord_message(f"監測腳本錯誤: {str(e)} - Telegram失敗: {str(telegram_error)}")
-            except:
-                pass
-            return jsonify({"status": "error", "message": f"{str(e)} - Telegram failed: {str(telegram_error)}"}), 500
+        except Exception as discord_error:
+            return jsonify({"status": "error", "message": f"{str(e)} - Discord failed: {str(discord_error)}"}), 500
         return jsonify({"status": "error", "message": str(e)}), 500
