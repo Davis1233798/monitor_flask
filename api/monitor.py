@@ -13,6 +13,31 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 URL = "https://www.serv00.com/"
 URL2 = "https://www.ct8.pl/"
 
+# Discord配置
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+WEBCRAWLER_DISCORD_WEBHOOK_URL = os.environ.get("WEBCRAWLER_DISCORD_WEBHOOK_URL")
+
+def send_discord_message(message):
+    """發送訊息到Discord頻道"""
+    # 優先使用專用頻道Webhook
+    webhook_url = WEBCRAWLER_DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL
+    
+    if not webhook_url:
+        print("Discord Webhook URL 未設置")
+        return False, "Discord Webhook URL 未設置"
+    
+    payload = {"content": str(message)}
+    try:
+        response = requests.post(webhook_url, json=payload)
+        response.raise_for_status()
+        if WEBCRAWLER_DISCORD_WEBHOOK_URL:
+            print("訊息已發送至Web爬蟲專用頻道")
+        return True, "Discord訊息發送成功"
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Discord發送失敗: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+
 def send_message(message):
     """發送訊息到 Telegram，若失敗則拋出異常"""
     if not TOKEN or not CHAT_ID:
@@ -22,10 +47,16 @@ def send_message(message):
     try:
         response = requests.post(url, json=payload)
         response.raise_for_status()
+        # 嘗試也發送到Discord
+        send_discord_message(message)
         return True, "訊息發送成功"
     except requests.exceptions.RequestException as e:
         error_msg = f"Telegram 發送失敗: {str(e)}"
-        raise Exception(error_msg)
+        # 嘗試發送到Discord作為備用
+        discord_success, _ = send_discord_message(message)
+        if not discord_success:
+            raise Exception(error_msg)
+        return discord_success, "Telegram失敗但Discord發送成功"
 
 def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
     """獲取網站數字，若失敗則發送錯誤訊息到 Telegram"""
@@ -60,20 +91,15 @@ def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
 def monitor():
     """主監控函數，執行監控邏輯並發送測試訊息"""
     try:
-        # 測試端點是否正常
-        # success, msg = send_message("測試訊息：Vercel 端點已觸發")
-        # if not success:
-        #     return jsonify({"status": "error", "message": msg}), 500
+        # 測試Discord是否可用
+        discord_success, discord_msg = send_discord_message("🔍 Web爬蟲監控服務啟動")
+        if not discord_success:
+            print(f"Discord發送失敗: {discord_msg}")
 
         xxxxx, ooooo = get_numbers(URL)
         xx, oo = get_numbers(URL2)
         difference = ooooo - xxxxx
         dif = oo - xx
-
-        # 測試模式：發送 dif 值
-        # success, msg = send_message(f"Test mode: dif = {dif}")
-        # if not success:
-        #     return jsonify({"status": "error", "message": msg}), 500
 
         if difference > 2:
             send_message(f"警告：ooooo - xxxxx = {difference} > 2\n當前值：{xxxxx} / {ooooo}")
@@ -95,5 +121,10 @@ def monitor():
         try:
             send_message(error_message)
         except Exception as telegram_error:
+            # 如果Telegram也失敗，嘗試發送到Discord
+            try:
+                send_discord_message(f"監測腳本錯誤: {str(e)} - Telegram失敗: {str(telegram_error)}")
+            except:
+                pass
             return jsonify({"status": "error", "message": f"{str(e)} - Telegram failed: {str(telegram_error)}"}), 500
         return jsonify({"status": "error", "message": str(e)}), 500
