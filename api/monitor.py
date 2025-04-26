@@ -7,6 +7,9 @@ import time
 
 app = Flask(__name__)
 
+# 全局變量來追踪服務啟動通知是否已發送
+startup_message_sent = False
+
 # 網站配置
 URL = "https://www.serv00.com/"
 URL2 = "https://www.ct8.pl/"
@@ -68,12 +71,16 @@ def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
 @app.route('/')
 def monitor():
     """主監控函數，執行監控邏輯並發送測試訊息"""
+    global startup_message_sent
+    
     try:
-        # 測試Discord是否可用
-        success, msg = send_message("🔍 Web爬蟲監控服務啟動")
-        if not success:
-            print(f"Discord發送失敗: {msg}")
-
+        # 測試Discord是否可用（只在首次執行時發送啟動通知）
+        if not startup_message_sent:
+            success, msg = send_message("🔍 Web爬蟲監控服務啟動")
+            if not success:
+                print(f"Discord發送失敗: {msg}")
+            startup_message_sent = True
+        
         xxxxx, ooooo = get_numbers(URL)
         xx, oo = get_numbers(URL2)
         difference = ooooo - xxxxx
