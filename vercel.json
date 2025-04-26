@@ -11,9 +11,5 @@
       "src": "/(.*)",
       "dest": "/api/monitor.py"
     }
-  ],
-  "env": {
-    "DISCORD_WEBHOOK_URL": "${DISCORD_WEBHOOK_URL}",
-    "WEBCRAWLER_DISCORD_WEBHOOK_URL": "${WEBCRAWLER_DISCORD_WEBHOOK_URL}"
-  }
+  ]
 }
