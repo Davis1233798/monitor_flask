@@ -5,6 +5,7 @@ import os
 import re
 import time
 import traceback
+import random
 
 app = Flask(__name__)
 
@@ -18,6 +19,10 @@ URL2 = "https://www.ct8.pl/"
 # Discord配置
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 WEBCRAWLER_DISCORD_WEBHOOK_URL = os.environ.get("WEBCRAWLER_DISCORD_WEBHOOK_URL")
+
+# 代理設定 (可通過環境變數設置)
+USE_PROXY = os.environ.get("USE_PROXY", "false").lower() == "true"
+PROXY_URL = os.environ.get("PROXY_URL", "")
 
 def send_message(message):
     """發送訊息到Discord頻道"""
@@ -42,9 +47,36 @@ def send_message(message):
 
 def get_numbers(url, retries=2, timeout=3):  # 進一步縮短 timeout 以避免超時
     """獲取網站數字，若失敗則發送錯誤訊息"""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
+        'Referer': 'https://www.google.com/',  # 添加 Referer 頭
+    }
+    
+    # 設置代理（如果啟用）
+    proxies = None
+    if USE_PROXY and PROXY_URL:
+        proxies = {
+            "http": PROXY_URL,
+            "https": PROXY_URL
+        }
+    
     for attempt in range(retries):
         try:
-            response = requests.get(url, timeout=timeout)
+            # 添加隨機延遲 0.5-1.5 秒
+            if attempt > 0:
+                sleep_time = 0.5 + random.random()
+                time.sleep(sleep_time)
+                
+            response = requests.get(url, headers=headers, timeout=timeout, proxies=proxies)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             span = soup.find("span", class_="button is-large is-flexible")
