@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import os
 import re
 import time
+import traceback
 
 app = Flask(__name__)
 
@@ -29,7 +30,7 @@ def send_message(message):
     
     payload = {"content": str(message)}
     try:
-        response = requests.post(webhook_url, json=payload)
+        response = requests.post(webhook_url, json=payload, timeout=3)  # 減少超時時間
         response.raise_for_status()
         if WEBCRAWLER_DISCORD_WEBHOOK_URL:
             print("訊息已發送至Web爬蟲專用頻道")
@@ -39,7 +40,7 @@ def send_message(message):
         print(error_msg)
         return False, error_msg
 
-def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
+def get_numbers(url, retries=2, timeout=3):  # 進一步縮短 timeout 以避免超時
     """獲取網站數字，若失敗則發送錯誤訊息"""
     for attempt in range(retries):
         try:
@@ -49,24 +50,23 @@ def get_numbers(url, retries=3, timeout=5):  # 縮短 timeout 以避免超時
             span = soup.find("span", class_="button is-large is-flexible")
             if not span:
                 error_msg = f"無法找到 span 標籤，URL: {url}"
-                send_message(error_msg)
-                raise ValueError(error_msg)
+                # 不在此處發送通知，避免延遲
+                return 0, 0  # 返回默認值而不是引發錯誤
             text = span.get_text(strip=True)
             match = re.search(r"(\d+)\s*/\s*(\d+)", text)
             if not match:
                 error_msg = f"無法從文本中提取數字，URL: {url}"
-                send_message(error_msg)
-                raise ValueError(error_msg)
+                # 不在此處發送通知，避免延遲
+                return 0, 0  # 返回默認值而不是引發錯誤
             xxxxx = int(match.group(1))
             ooooo = int(match.group(2))
             return xxxxx, ooooo
         except requests.exceptions.RequestException as e:
             if attempt < retries - 1:
-                time.sleep(2)
+                time.sleep(1)  # 縮短重試間隔
                 continue
-            error_msg = f"請求失敗，URL: {url} - {str(e)}"
-            send_message(error_msg)
-            raise Exception(error_msg)
+            print(f"請求失敗，URL: {url} - {str(e)}")
+            return 0, 0  # 返回默認值而不是引發錯誤
 
 @app.route('/')
 def monitor():
@@ -81,28 +81,44 @@ def monitor():
                 print(f"Discord發送失敗: {msg}")
             startup_message_sent = True
         
-        xxxxx, ooooo = get_numbers(URL)
-        xx, oo = get_numbers(URL2)
-        difference = ooooo - xxxxx
-        dif = oo - xx
-
-        if difference > 2:
-            send_message(f"警告：ooooo - xxxxx = {difference} > 2\n當前值：{xxxxx} / {ooooo}")
-        if dif > 2:
-            send_message(f"警告：oo - xx = {dif} > 2\n當前值：{xx} / {oo}")
-        if difference > 2 or dif > 2:
-            message = (
-                f"Respority:Davis1233798/monitor.py\n"
-                f"cron-job.org\n"
-                f"網站網址: {URL}\n"
-                f"網站網址: {URL2}\n"
-                f"{URL} 目前可註冊數量: {difference}\n"
-                f"{URL2} 目前可註冊數量: {dif}"
-            )
-            send_message(message)
+        # 使用 try/except 包裝每個可能失敗的操作
+        try:
+            xxxxx, ooooo = get_numbers(URL)
+            xx, oo = get_numbers(URL2)
+            
+            # 只有在成功獲取數據時才進行比較和發送通知
+            if xxxxx > 0 and ooooo > 0 and xx > 0 and oo > 0:
+                difference = ooooo - xxxxx
+                dif = oo - xx
+                
+                alert_message = ""
+                
+                if difference > 2:
+                    alert_message += f"警告：ooooo - xxxxx = {difference} > 2\n當前值：{xxxxx} / {ooooo}\n"
+                if dif > 2:
+                    alert_message += f"警告：oo - xx = {dif} > 2\n當前值：{xx} / {oo}\n"
+                
+                if alert_message:
+                    message = (
+                        f"Respority:Davis1233798/monitor.py\n"
+                        f"cron-job.org\n"
+                        f"網站網址: {URL}\n"
+                        f"網站網址: {URL2}\n"
+                        f"{URL} 目前可註冊數量: {difference}\n"
+                        f"{URL2} 目前可註冊數量: {dif}"
+                    )
+                    send_message(alert_message + message)
+        except Exception as inner_e:
+            error_details = traceback.format_exc()
+            error_message = f"數據處理錯誤：{str(inner_e)}\n{error_details}"
+            print(error_message)
+            send_message(error_message)
+        
         return jsonify({"status": "success"})
     except Exception as e:
-        error_message = f"監測腳本出現錯誤：{str(e)}"
+        error_details = traceback.format_exc()
+        error_message = f"監測腳本出現錯誤：{str(e)}\n{error_details}"
+        print(error_message)
         try:
             send_message(error_message)
         except Exception as discord_error:
